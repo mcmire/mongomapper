@@ -179,7 +179,7 @@ module MongoMapper
         end
       end
       
-      def new_record?
+      def new?
         !!@new_record
       end
 
