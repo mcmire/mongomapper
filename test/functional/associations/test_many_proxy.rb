@@ -292,4 +292,22 @@ class ManyProxyTest < Test::Unit::TestCase
       end
     end
   end
+  
+  #addr1 = Address.new(:address => "Gate-3 Lankershim Blvd.", :city => "Universal City", :state => "CA", :zip => "91608")
+  #addr2 = Address.new(:address => "3000 W. Alameda Ave.", :city => "Burbank", :state => "CA", :zip => "91523")
+  #addr3 = Address.new(:address => "111 Some Ln", :city => "Nashville", :state => "TN", :zip => "37211")
+  #@project.addresses = [addr1, addr2, addr3]
+  #@project.save
+  #Address.expects(:find).with(:all, :conditions => { :state => "CA" })
+  #@project.addresses.find_by_state("CA").should == [addr1, addr2]
+  
+  should "scope class methods called on the association" do
+    @project = Project.new(:name => 'Project 1')
+    status1 = Status.new(:name => "In Progress")
+    status2 = Status.new(:name => "Archived")
+    status3 = Status.new(:name => "Complete")
+    @project.statuses = [status1, status2, status3]
+    @project.save
+    @project.statuses.find_by_name("In Progress").should == status1
+  end
 end

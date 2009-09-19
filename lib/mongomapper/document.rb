@@ -12,6 +12,7 @@ module MongoMapper
         include RailsCompatibility::Document
         extend Validations::Macros
         extend ClassMethods
+        include Scopes
       end
 
       descendants << model

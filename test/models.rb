@@ -48,6 +48,10 @@ class Status
   
   belongs_to :project
   belongs_to :target, :polymorphic => true
+  
+  def self.find_by_name(name)
+    find(:first, :conditions => { :name => name })
+  end
 end
 
 class RealPerson

@@ -8,11 +8,13 @@ gem 'mocha', '0.9.4'
 gem 'jnunemaker-matchy', '0.4.0'
 
 require 'matchy'
-require 'mocha'
 
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 dir = (Pathname(__FILE__).dirname +  '..' + 'lib').expand_path
 require dir + 'mongomapper'
+
+# BasicObject wipes out all methods, including Mocha-added Object methods, so this must come after
+require 'mocha'
 
 class Test::Unit::TestCase  
   def clear_all_collections
@@ -58,6 +60,61 @@ class Test::Unit::TestCase
       matcher.negative_failure_message = %Q(Expected error on #{attribute} not to be "#{expected_message}" but was "#{actual}")
       actual == expected_message
     end
+  end
+end
+
+class Class
+  # Derived from <http://blog.jayfields.com/2007/11/ruby-testing-private-methods.html>
+  # This should be used sparingly
+  def publicize_methods!
+    @publicized_instance_methods = self.private_instance_methods + self.protected_instance_methods
+    class_eval { public *@publicized_instance_methods }
+  end
+  def unpublicize_methods!
+    class_eval { private *@publicized_instance_methods }
+  end
+end
+
+# Patch Mocha so we can tell a method that it should be called with a block
+Mocha::Expectation.class_eval do
+  def with_a_block
+    @expect_block = true
+    self
+  end
+  alias_method :and_a_block, :with_a_block
+
+  def invoke
+    @invocation_count += 1
+    perform_side_effects()
+    if block_given? then
+      @yield_parameters.next_invocation.each do |yield_parameters|
+        yield(*yield_parameters)
+      end
+      @invoked_with_block = true
+    end
+    @return_values.next
+  end
+  
+  alias_method :orig_verified?, :verified? unless method_defined?(:orig_verified?)
+  def verified?(assertion_counter = nil)
+    orig_verified?(assertion_counter) && (!@expect_block || @invoked_with_block)
+  end
+  
+  def mocha_inspect
+    message = "#{@cardinality.mocha_inspect}"
+    message << " and with a block" if @expect_block
+    message << ", "
+    message << case @invocation_count
+      when 0 then "not yet invoked"
+      when 1 then "already invoked once"
+      when 2 then "already invoked twice"
+      else "already invoked #{@invocation_count} times"
+    end
+    message << (@invocation_count == 0 || @invoked_with_block ? " " : " but ") + (@invoked_with_block ? "with" : "without") + " a block"
+    message << ": "
+    message << method_signature
+    message << "; #{@ordering_constraints.map { |oc| oc.mocha_inspect }.join("; ")}" unless @ordering_constraints.empty?
+    message
   end
 end
 

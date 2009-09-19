@@ -50,7 +50,6 @@ module MongoMapper
         end
         
       private
-      
         def assign_parent_reference(child)
           return unless child && @owner
           return if @owner.class.name.blank?

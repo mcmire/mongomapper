@@ -2,6 +2,12 @@ module MongoMapper
   module Associations
     class ManyDocumentsProxy < Proxy
       delegate :klass, :to => :@association
+      delegate :with_scope, :to => :klass
+      
+      def [](index)
+        load_target
+        @target[index]
+      end
 
       def find(*args)
         options = args.extract_options!
@@ -27,6 +33,8 @@ module MongoMapper
       def count(conditions={})
         klass.count(conditions.deep_merge(scoped_conditions))
       end
+      alias_method :size, :count
+      alias_method :length, :count
 
       def replace(docs)
         @target.map(&:destroy) if load_target
@@ -71,6 +79,15 @@ module MongoMapper
         end
         reset
       end
+      
+      def to_ary
+        load_target
+        if @target.is_a?(Array)
+          @target.to_ary
+        else
+          Array(@target)
+        end
+      end
 
       protected
         def scoped_conditions
@@ -97,6 +114,29 @@ module MongoMapper
 
         def foreign_key
           @association.options[:foreign_key] || @owner.class.name.underscore.gsub("/", "_") + "_id"
+        end
+        
+      private
+        def method_missing(method, *args)
+          # see Rails trac #1764 for when this was added to Rails
+          if @target.respond_to?(method)#|| (!klass.respond_to?(method) && Class.respond_to?(method))
+            ##puts "-- from MDP#method_missing: target #{@target.inspect} (a #{@target.class}) responds to method #{method.inspect} with args #{args.inspect}"
+            if block_given?
+              super { |*block_args| yield(*block_args) }
+            else
+              super
+            end
+          else
+            ##puts "-- from MDP#method_missing: klass #{klass} responds to method #{method.inspect} with args #{args.inspect}"
+            with_scope(:conditions => scoped_conditions) do
+              ##p "klass_id" => klass.object_id
+              if block_given?
+                klass.send(method, *args) { |*block_args| yield(*block_args) }
+              else
+                klass.send(method, *args)
+              end
+            end
+          end
         end
     end
   end

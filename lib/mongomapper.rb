@@ -33,6 +33,7 @@ require dir + 'key'
 require dir + 'observing'
 require dir + 'pagination'
 require dir + 'save_with_validation'
+require dir + 'scopes'
 require dir + 'serialization'
 require dir + 'validations'
 

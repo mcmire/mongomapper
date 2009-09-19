@@ -34,8 +34,16 @@ module MongoMapper
       end
 
       protected
+        # tested
         def method_missing(method, *args)
+          ##puts "-- from P#method_missing: target #{@target.inspect} (a #{@target.class}) responds to method #{method.inspect} with args #{args.inspect}"
           if load_target
+            unless @target.respond_to?(method)
+              message = "undefined method `#{method.to_s}' for \"#{@target}\":#{@target.class.to_s}"
+              raise NoMethodError, message
+            end
+            
+            #raise "ok, great. what is the target? #{@target.inspect}"
             if block_given?
               @target.send(method, *args)  { |*block_args| yield(*block_args) }
             else
