@@ -32,6 +32,18 @@ Rake::TestTask.new(:test) do |test|
   test.pattern = 'test/**/test_*.rb'
   test.verbose = true
 end
+namespace :test do
+  Rake::TestTask.new(:units) do |test|
+    test.libs << 'lib' << 'test'
+    test.pattern = 'test/unit/**/test_*.rb'
+    test.verbose = true
+  end
+  Rake::TestTask.new(:functionals) do |test|
+    test.libs << 'lib' << 'test'
+    test.pattern = 'test/functional/**/test_*.rb'
+    test.verbose = true
+  end
+end
 
 begin
   require 'rcov/rcovtask'
