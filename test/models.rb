@@ -25,16 +25,69 @@ class Chat < Message;  end
 class Room
   include MongoMapper::Document
   
+  module AccountsExtensions
+    def inactive
+      find(:all, :conditions => { :last_logged_in => nil })
+    end
+  end
+  
   key :name, String
-  many :messages, :polymorphic => true
+  many :messages, :polymorphic => true do
+    def older
+      find(:all, :conditions => { :position => {"$gt" => 5} })
+    end
+  end
+  many :accounts, :polymorphic => true, :extend => AccountsExtensions
 end
+
+class Account
+  include MongoMapper::Document
+  
+  key :_type, String
+  key :room_id, String
+  key :last_logged_in, Time
+  
+  belongs_to :room
+end
+class User < Account; end
+class Bot < Account; end
 
 class Project
   include MongoMapper::Document
   
+  module PeopleExtensions
+    def find_by_name(name)
+      detect {|p| p.name == name }
+    end
+  end
+  
+  module CollaboratorsExtensions
+    def top
+      find(:first)
+    end
+  end
+  
   key :name, String
-  many :statuses
-  many :addresses
+  many :statuses do
+    def open
+      find(:all, :conditions => { :name => %w(New Assigned) })
+    end
+  end
+  many :collaborators, :extend => CollaboratorsExtensions
+  many :addresses do
+    def find_all_by_state(state)
+      # can't use select here for some reason
+      find_all {|a| a.state == state }
+    end
+  end
+  many :people, :extend => PeopleExtensions
+end
+
+class Collaborator
+  include MongoMapper::Document
+  key :project_id, String
+  key :name, String
+  belongs_to :project
 end
 
 class Status
@@ -53,8 +106,11 @@ end
 class RealPerson
   include MongoMapper::Document
   
-  many :pets
+  key :room_id, String
   key :name, String
+  
+  belongs_to :room
+  many :pets
 
   def realname=(n)
     self.name = n
@@ -82,6 +138,7 @@ class Media
   
   key :_type, String
   key :file, String
+  key :visible, Boolean
 end
 
 class Video < Media
@@ -100,7 +157,12 @@ end
 class Catalog
   include MongoMapper::Document
   
-  many :medias, :polymorphic => true
+  many :medias, :polymorphic => true do
+    def visible
+      # for some reason we can't use select here
+      find_all {|m| m.visible? }
+    end
+  end
 end
 
 module TrModels
@@ -109,6 +171,7 @@ module TrModels
     
     key :_type, String
     key :license_plate, String
+    key :purchased_on, Date
   end
 
   class Car < TrModels::Transport
@@ -133,7 +196,14 @@ module TrModels
   class Fleet
     include MongoMapper::Document
     
-    many :transports, :polymorphic => true, :class_name => "TrModels::Transport"
+    module TransportsExtension
+      def to_be_replaced
+        # for some reason we can't use select
+        find_all {|t| t.purchased_on < 2.years.ago.to_date }
+      end
+    end
+    
+    many :transports, :polymorphic => true, :class_name => "TrModels::Transport", :extend => TransportsExtension
     key :name, String
   end
 end
